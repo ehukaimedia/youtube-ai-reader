@@ -29,7 +29,7 @@ def write_text(path: Path, content: str) -> Path:
 
 
 def package_directory(job_directory: Path) -> Path:
-    base_name = job_directory / "bundle"
+    base_name = job_directory.parent / job_directory.name
     archive_path = base_name.with_suffix(".zip")
     if archive_path.exists():
         archive_path.unlink()

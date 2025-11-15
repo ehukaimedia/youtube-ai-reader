@@ -18,11 +18,11 @@ A FastAPI service that converts any public YouTube video into AI-ready bundles. 
    uvicorn app.main:app --reload
    ```
 3. **Open the UI** at http://localhost:8000/ and submit a video via the form, or use the API directly:
-   ```bash
-   curl -X POST http://localhost:8000/jobs \
+  ```bash
+  curl -X POST http://localhost:8000/jobs \
      -H 'Content-Type: application/json' \
-     -d '{"video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "interval_sec": 20}'
-   ```
+     -d '{"video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "interval_sec": 15, "min_width": 1280, "max_width": 1920}'
+  ```
 4. **Check progress (API)**
    ```bash
    curl http://localhost:8000/jobs/<job_id>
@@ -35,6 +35,7 @@ A FastAPI service that converts any public YouTube video into AI-ready bundles. 
 ## Environment Notes
 - ffmpeg and yt-dlp must be present on `PATH`. On Apple Silicon, `brew install ffmpeg yt-dlp` places them under `/opt/homebrew/bin`.
 - Configure storage paths with `DATA_ROOT` (defaults to `data/jobs` in the repo root).
+- The UI defaults to 15-second intervals and captures frames between 1280–1920 px wide for higher-resolution context; tweak `templates/index.html` if you need different values.
 
 ## Project Structure
 ```
