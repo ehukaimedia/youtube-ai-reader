@@ -20,7 +20,7 @@ class JobCreateRequest(BaseModel):
     min_width: int = Field(480, ge=1, le=7680)
     max_width: int = Field(1280, ge=1, le=7680)
     language: str = Field("en", min_length=2, max_length=5)
-    frame_limit: int = Field(40, ge=1, le=500)
+    frame_limit: int = Field(100, ge=1, le=500)
 
 
 class FrameMetadata(BaseModel):

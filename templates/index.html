@@ -40,7 +40,7 @@
             </div>
             <div class="col-md-4">
               <label for="frame_limit" class="form-label">Frame limit</label>
-              <input type="number" id="frame_limit" name="frame_limit" class="form-control" min="1" max="500" value="40" />
+              <input type="number" id="frame_limit" name="frame_limit" class="form-control" min="1" max="500" value="100" />
             </div>
             <div class="col-md-4">
               <label for="language" class="form-label">Transcript language</label>
@@ -84,7 +84,7 @@
       const parseForm = () => ({
         video_url: form.video_url.value.trim(),
         interval_sec: Number(form.interval_sec.value) || 15,
-        frame_limit: Number(form.frame_limit.value) || 40,
+        frame_limit: Number(form.frame_limit.value) || 100,
         min_width: Number(form.min_width.value) || 1280,
         max_width: Number(form.max_width.value) || 1920,
         language: form.language.value.trim() || 'en',
