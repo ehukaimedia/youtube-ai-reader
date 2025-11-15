@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -28,50 +28,17 @@ class FrameMetadata(BaseModel):
     timestamp_sec: float
     width: int
     height: int
-    scene_change: bool = False
-    scene_score: float = 0.0
-    ocr_text: Optional[str] = None
-    caption: Optional[str] = None
-
-
-class TranscriptSource(str, Enum):
-    youtube = "youtube"
-    whisper = "whisper"
-
-
-class TranscriptSegment(BaseModel):
-    start: float
-    end: float
-    text: str
-    source: TranscriptSource
-    confidence: Optional[float] = None
-
-
-class TranscriptBundle(BaseModel):
-    best_source: TranscriptSource
-    sources: List[TranscriptSource]
-    segments: List[TranscriptSegment]
-    alternates: Dict[TranscriptSource, List[TranscriptSegment]] = Field(default_factory=dict)
 
 
 class Manifest(BaseModel):
     video_url: HttpUrl
     language: str
     interval_sec: int
-    frame_limit: int
-    frame_scene_threshold: float
     frames: List[FrameMetadata]
-    frames_json_path: str
     transcript_items: int
-    transcript_json_path: str
-    transcript_bundle_path: str
-    transcript_sources: List[TranscriptSource]
-    transcript_primary_source: TranscriptSource
     markdown_path: str
-    quality_report_path: str
+    transcript_json_path: str
     generated_at: datetime
-    ocr_enabled: bool
-    caption_model: Optional[str] = None
 
 
 class JobResponse(BaseModel):

@@ -5,14 +5,9 @@ from pathlib import Path
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
-from .config import settings
-from .health import dependency_snapshot
 from .jobs import JobStore
-from .logging_config import configure_logging
 from .pipelines import run_pipeline
 from .schemas import JobCreateRequest, JobResponse, JobStatus
-
-configure_logging()
 
 app = FastAPI(title="YouTube AI Reader", version="0.1.0")
 job_store = JobStore()
@@ -58,14 +53,4 @@ async def ui_root() -> HTMLResponse:
 
 @app.get("/health")
 async def health() -> dict:
-    return {
-        "service": app.title,
-        "version": app.version,
-        "dependencies": dependency_snapshot(),
-        "config": {
-            "data_root": str(settings.data_root),
-            "frame_scene_threshold": settings.frame_scene_threshold,
-            "ocr_enabled": settings.enable_ocr,
-            "ollama_model": settings.ollama_model,
-        },
-    }
+    return {"service": app.title, "version": app.version}

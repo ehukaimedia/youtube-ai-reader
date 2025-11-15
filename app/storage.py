@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any
 
-from .config import settings
 
-
-DEFAULT_DATA_ROOT = settings.data_root
+DEFAULT_DATA_ROOT = Path(os.environ.get("DATA_ROOT", Path(__file__).resolve().parents[1] / "data" / "jobs"))
 
 
 def job_dir(job_id: str, data_root: Path = DEFAULT_DATA_ROOT) -> Path:
@@ -30,8 +29,7 @@ def write_text(path: Path, content: str) -> Path:
 
 
 def package_directory(job_directory: Path) -> Path:
-    parent = job_directory.parent
-    base_name = parent / job_directory.name
+    base_name = job_directory / "bundle"
     archive_path = base_name.with_suffix(".zip")
     if archive_path.exists():
         archive_path.unlink()
