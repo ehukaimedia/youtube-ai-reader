@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube AI Reader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+      body { background: #0b131e; color: #f3f6ff; min-height: 100vh; }
+      .card { border: 1px solid rgba(255,255,255,0.08); background: #111b2b; color: #e6ecff; }
+      .form-control, .form-select { background: #0f1827; border-color: #1f2a3d; color: #f3f6ff; }
+      .form-control:focus { background: #0f1827; color: #fff; }
+      .brand-title { font-size: 1.75rem; font-weight: 600; }
+      .muted { color: rgba(255,255,255,0.6); }
+      .job-card.complete { border-color: #4ade80; }
+      .job-card.failed { border-color: #f87171; }
+    </style>
+  </head>
+  <body>
+    <div class="container py-5">
+      <header class="mb-5">
+        <p class="text-uppercase text-info fw-semibold mb-2">AI Bundle Generator</p>
+        <h1 class="brand-title mb-3">YouTube to Transcript + Frames</h1>
+        <p class="muted mb-0">Submit any public YouTube URL and receive AI-friendly Markdown, JSON, and PNG artifacts packaged in a downloadable zip.</p>
+      </header>
+
+      <section class="mb-5">
+        <form id="job-form" class="card p-4 shadow-sm">
+          <div id="form-alert" class="alert alert-danger d-none" role="alert"></div>
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="video_url" class="form-label">YouTube URL</label>
+              <input type="url" id="video_url" name="video_url" class="form-control" placeholder="https://www.youtube.com/watch?v=..." required />
+            </div>
+            <div class="col-md-4">
+              <label for="interval_sec" class="form-label">Screenshot interval (sec)</label>
+              <input type="number" id="interval_sec" name="interval_sec" class="form-control" min="1" max="3600" value="30" />
+            </div>
+            <div class="col-md-4">
+              <label for="frame_limit" class="form-label">Frame limit</label>
+              <input type="number" id="frame_limit" name="frame_limit" class="form-control" min="1" max="500" value="40" />
+            </div>
+            <div class="col-md-4">
+              <label for="language" class="form-label">Transcript language</label>
+              <input type="text" id="language" name="language" class="form-control" value="en" maxlength="5" />
+            </div>
+            <div class="col-md-6">
+              <label for="min_width" class="form-label">Minimum frame width (px)</label>
+              <input type="number" id="min_width" name="min_width" class="form-control" min="1" max="7680" value="480" />
+            </div>
+            <div class="col-md-6">
+              <label for="max_width" class="form-label">Maximum frame width (px)</label>
+              <input type="number" id="max_width" name="max_width" class="form-control" min="1" max="7680" value="1280" />
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-3 mt-4">
+            <button type="submit" class="btn btn-primary px-4">Start Conversion</button>
+            <div class="spinner-border text-info d-none" id="form-spinner" role="status" style="width: 1.75rem; height: 1.75rem;"></div>
+          </div>
+        </form>
+      </section>
+
+      <section>
+        <div class="d-flex align-items-center mb-3">
+          <h2 class="h4 mb-0">Conversion jobs</h2>
+          <span class="muted ms-3" id="job-count">Waiting for submissions…</span>
+        </div>
+        <div id="jobs-grid" class="row gy-4">
+          <!-- job cards injected here -->
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const form = document.getElementById('job-form');
+      const spinner = document.getElementById('form-spinner');
+      const alertBox = document.getElementById('form-alert');
+      const jobsGrid = document.getElementById('jobs-grid');
+      const jobCount = document.getElementById('job-count');
+      const pollers = new Map();
+
+      const parseForm = () => ({
+        video_url: form.video_url.value.trim(),
+        interval_sec: Number(form.interval_sec.value) || 30,
+        frame_limit: Number(form.frame_limit.value) || 40,
+        min_width: Number(form.min_width.value) || 480,
+        max_width: Number(form.max_width.value) || 1280,
+        language: form.language.value.trim() || 'en',
+      });
+
+      const showAlert = (message) => {
+        alertBox.textContent = message;
+        alertBox.classList.remove('d-none');
+      };
+
+      const hideAlert = () => alertBox.classList.add('d-none');
+
+      const setLoading = (state) => {
+        if (state) {
+          spinner.classList.remove('d-none');
+        } else {
+          spinner.classList.add('d-none');
+        }
+      };
+
+      const updateCount = () => {
+        const total = document.querySelectorAll('[data-job-card]').length;
+        if (!total) {
+          jobCount.textContent = 'Waiting for submissions…';
+        } else {
+          jobCount.textContent = `${total} job${total === 1 ? '' : 's'} tracked`;
+        }
+      };
+
+      const templateCard = (job) => {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-lg-6';
+        col.innerHTML = `
+          <div class="card p-4 job-card" data-job-card data-job-id="${job.id}">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <h3 class="h5 mb-1">Job ${job.id.slice(0, 8)}</h3>
+                <p class="muted mb-0" data-job-url></p>
+              </div>
+              <span class="badge text-bg-secondary" data-job-status>${job.status}</span>
+            </div>
+            <dl class="row mb-3 small">
+              <dt class="col-sm-4">Created</dt>
+              <dd class="col-sm-8" data-job-created>${new Date(job.created_at).toLocaleString()}</dd>
+              <dt class="col-sm-4">Updated</dt>
+              <dd class="col-sm-8" data-job-updated>-</dd>
+            </dl>
+            <div class="mb-3" data-job-manifest></div>
+            <div class="d-flex gap-3">
+              <a class="btn btn-success btn-sm d-none" target="_blank" rel="noopener" data-job-download>Download bundle</a>
+              <button class="btn btn-outline-light btn-sm" data-job-refresh>Refresh</button>
+            </div>
+          </div>`;
+        const card = col.querySelector('[data-job-card]');
+        card.dataset.videoUrl = job.video_url || '';
+        col.querySelector('[data-job-url]').textContent = card.dataset.videoUrl || 'pending…';
+        col.querySelector('[data-job-refresh]').addEventListener('click', () => refreshJob(job.id));
+        return col;
+      };
+
+      const renderManifest = (container, manifest) => {
+        if (!manifest) {
+          container.innerHTML = '';
+          return;
+        }
+        const list = [
+          `<div class="small">Transcript entries: <strong>${manifest.transcript_items}</strong></div>`,
+          `<div class="small">Frames captured: <strong>${manifest.frames.length}</strong></div>`,
+          `<div class="small">Interval: every ${manifest.interval_sec}s</div>`,
+        ];
+        container.innerHTML = list.join('');
+      };
+
+      const addOrUpdateCard = (job) => {
+        let card = document.querySelector(`[data-job-id="${job.id}"]`);
+        if (!card) {
+          const newCol = templateCard(job);
+          jobsGrid.prepend(newCol);
+          card = newCol.querySelector('[data-job-card]');
+        }
+        card.querySelector('[data-job-status]').textContent = job.status;
+        card.querySelector('[data-job-status]').className = `badge text-bg-${
+          job.status === 'complete' ? 'success' : job.status === 'failed' ? 'danger' : 'secondary'
+        }`;
+        card.classList.remove('complete', 'failed');
+        if (job.status === 'complete') card.classList.add('complete');
+        if (job.status === 'failed') card.classList.add('failed');
+        card.querySelector('[data-job-updated]').textContent = new Date(job.updated_at).toLocaleString();
+        const resolvedUrl = job.manifest?.video_url || job.video_url || card.dataset.videoUrl || 'pending…';
+        card.dataset.videoUrl = resolvedUrl;
+        card.querySelector('[data-job-url]').textContent = resolvedUrl;
+        renderManifest(card.querySelector('[data-job-manifest]'), job.manifest);
+        const download = card.querySelector('[data-job-download]');
+        if (job.status === 'complete') {
+          download.href = `/jobs/${job.id}/package`;
+          download.textContent = 'Download bundle';
+          download.classList.remove('d-none');
+        } else {
+          download.classList.add('d-none');
+        }
+        updateCount();
+      };
+
+      const refreshJob = async (jobId) => {
+        try {
+          const res = await fetch(`/jobs/${jobId}`);
+          if (!res.ok) throw new Error('Could not fetch job');
+          const data = await res.json();
+          addOrUpdateCard(data);
+          if (['complete', 'failed'].includes(data.status)) {
+            clearInterval(pollers.get(jobId));
+            pollers.delete(jobId);
+          }
+        } catch (err) {
+          console.error(err);
+          showAlert(err.message || 'Unexpected error while refreshing job');
+        }
+      };
+
+      const startPolling = (jobId) => {
+        if (pollers.has(jobId)) clearInterval(pollers.get(jobId));
+        const interval = setInterval(() => refreshJob(jobId), 4000);
+        pollers.set(jobId, interval);
+      };
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        hideAlert();
+        setLoading(true);
+        try {
+          const payload = parseForm();
+          const res = await fetch('/jobs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.detail || 'Unable to create job');
+          }
+          const job = await res.json();
+          job.video_url = payload.video_url;
+          addOrUpdateCard(job);
+          startPolling(job.id);
+          form.reset();
+          form.interval_sec.value = payload.interval_sec;
+          form.frame_limit.value = payload.frame_limit;
+          form.min_width.value = payload.min_width;
+          form.max_width.value = payload.max_width;
+          form.language.value = payload.language;
+        } catch (err) {
+          showAlert(err.message || 'Unexpected error, please retry.');
+        } finally {
+          setLoading(false);
+        }
+      });
+    </script>
+  </body>
+</html>
