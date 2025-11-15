@@ -32,6 +32,11 @@ A FastAPI service that converts any public YouTube video into AI-ready bundles. 
    curl -L http://localhost:8000/jobs/<job_id>/package --output bundle.zip
    ```
 
+### Windows one-click launcher
+- Double-click `launch_ui.bat` (or run `.\launch_ui.bat` from PowerShell) to spin up the API + UI, auto-create `.venv`, and open your browser to http://127.0.0.1:8000/.
+- Pass `--sync` if you want to force `pip install -r requirements.txt` even when the environment already exists.
+- Ensure FFmpeg is on `PATH` (e.g., `winget install Gyan.FFmpeg`) so screenshot capture works; the script prints a warning if it is missing.
+
 ## Environment Notes
 - ffmpeg and yt-dlp must be present on `PATH`. On Apple Silicon, `brew install ffmpeg yt-dlp` places them under `/opt/homebrew/bin`.
 - Configure storage paths with `DATA_ROOT` (defaults to `data/jobs` in the repo root).
